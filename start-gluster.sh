@@ -5,6 +5,8 @@ service rpcbind start
 ## On docker surprisingly hostnames are mapped to IP's :-)
 IPADDR=$(hostname -i)
 
+echo $IPADDR $GLUSTER_NAME >> /etc/hosts
+
 ## Change this to your name if necessary
 VOLUME=vol
 
@@ -19,7 +21,7 @@ fi
 
 if [ ! -d "/var/lib/glusterd/vols/$VOLUME" ]; then
   ## Always create a sub-directory inside a mount-point
-  gluster --mode=script --wignore volume create $VOLUME $IPADDR:/mnt/brick
+  gluster --mode=script --wignore volume create $VOLUME $GLUSTER_NAME:/mnt/brick
 fi
 
 gluster --mode=script --wignore volume start $VOLUME force
