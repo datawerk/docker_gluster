@@ -1,0 +1,123 @@
+#!/bin/bash
+#
+# This script is designed to be run inside the container
+#
+
+# fail hard and fast even on pipelines
+set -meo pipefail
+
+# set debug based on envvar
+[[ $DEBUG ]] && set -x
+
+DIR=$(dirname $0)
+
+# functions
+. $DIR/functions
+
+export PORT=${PUBLISH:-24007}
+export PROTO=${PROTO:-tcp}
+export ETCD_HOST=${ETCD_HOST:-$HOST}
+export VOLUME=${VOLUME:-vol1}
+export MODE=${MODE:-replica}
+export EXPECTED_MEMBERS=${EXPECTED_MEMBERS:-2}
+
+# rpcbind is useful
+service rpcbind start
+
+# volumes will live in /export
+mkdir -p /export
+
+if [[ -z $HOST ]]; then
+  echo '==> $HOST not set.  booting glusterfs without clustering.'
+  glusterd --pid-file=/app/gluster.pid --log-file=- --no-daemon &
+  gluster volume create $VOLUME $(hostname -s):/export/$VOLUME
+  gluster volume start $VOLUME
+  gluster volume info
+  fg
+  echo "==> glusterfs running..."
+
+  exit $?
+fi
+
+configure_etcd
+
+etcd_make_directory volumes/$VOLUME/hosts
+etcd_set_default volumes/$VOLUME/host $HOST
+etcd_set_default volumes/$VOLUME/mode $MODE
+etcd_set_default volumes/$VOLUME/expected_members $EXPECTED_MEMBERS
+etcdctl --no-sync -C $ETCD set /hosts/$(hostname -s) $HOST >/dev/null 2>&1 || true
+
+sleep 5
+
+# wait for confd to run once and install initial templates
+until confd -onetime -node $ETCD -config-file /app/confd.toml; do
+  echo "echo ==> glusterfs: waiting for confd to write initial templates..."
+  sleep $(($ETCD_TTL/2))  # sleep for half the TTL
+done
+
+count_cluster_members
+cluster_members
+
+echo Starting GlusterFS
+glusterd --pid-file=/app/gluster.pid --log-file=- --no-daemon &
+
+while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~ \"$PROTO.?\"") ]] ; do sleep 1; done
+
+echo "==> glusterfs running..."
+
+if [[ $EXPECTED_MEMBERS -eq 1 ]]; then
+    my_ip
+    gluster volume create $VOLUME $MY_IP:/$VOLUME
+    gluster volume start $VOLUME
+    gluster volume info
+else
+  # Perform Election
+  echo "==> Performing Election..."
+  etcdctl $ETCD_OPTIONS ls $ETCD_PATH/election >/dev/null 2>&1 || etcdctl $ETCD_OPTIONS mkdir $ETCD_PATH/election >/dev/null 2>&1
+  if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/election/bootstrap $HOSTNAME >/dev/null 2>&1; then
+    echo "-----> Hurruh I win!"
+    BOOTSTRAP=1
+    etcdctl $ETCD_OPTIONS set $ETCD_PATH/election/bootstrap $HOSTNAME --ttl 300 >/dev/null 2>&1
+    NEED_MORE=$(expr $EXPECTED_MEMBERS - 1)
+    count_cluster_members
+    until [[ $COUNT_CLUSTER_MEMBERS -eq $NEED_MORE ]]; do
+      sleep 10
+      count_cluster_members
+      NEED_MORE=$(expr $EXPECTED_MEMBERS - 1)
+      echo "Expected $NEED_MORE other members, Have $COUNT_CLUSTER_MEMBERS."
+      echo -n "."
+    done
+    cluster_members
+    probe_peers
+    echo "==> Sleep 20 seconds for peer to settle down"
+    sleep 20
+    gluster volume create $VOLUME $MODE $EXPECTED_MEMBERS `hostname -s`:/export/$VOLUME $CLUSTER_MEMBERS
+    gluster volume start $VOLUME
+    gluster volume info
+  fi
+fi
+
+# smart shutdown on SIGINT and SIGTERM
+trap on_exit INT TERM
+
+# spawn confd in the background to update services based on etcd changes
+confd -node $ETCD -config-file /app/confd.toml &
+CONFD_PID=$!
+
+# publish the service to etcd using the injected HOST and PORT
+if [[ ! -z $PUBLISH ]]; then
+
+  set +e
+
+  # while the port is listening, publish to etcd
+  while [[ ! -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PUBLISH\" && \$1 ~ \"$PROTO.?\"") ]] ; do
+    publish_to_etcd
+    sleep $(($ETCD_TTL/2)) # sleep for half the TTL
+  done
+
+  # if the loop quits, something went wrong
+  exit 1
+
+fi
+
+wait
