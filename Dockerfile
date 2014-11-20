@@ -6,7 +6,7 @@ RUN yum --setopt=tsflags=nodocs -y install glusterfs glusterfs-server glusterfs-
 RUN yum --setopt=tsflags=nodocs -y install attr
 RUN yum clean all
 
-ADD bin /gluster/
+ADD gluster /gluster/
 
 RUN chmod +x /gluster/bin/*
 
