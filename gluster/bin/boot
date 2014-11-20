@@ -26,9 +26,6 @@ export MY_HOSTNAME=$(hostname -s)
 # rpcbind is useful
 service rpcbind start
 
-# volumes will live in /export
-mkdir -p /export
-
 configure_etcd
 
 etcd_make_directory hosts
