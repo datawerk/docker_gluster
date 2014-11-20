@@ -1,0 +1,12 @@
+[template]
+src   = "hosts"
+dest  = "/tmp/hosts"
+owner = "root"
+group = "root"
+mode  = "0644"
+keys = [
+  "/hosts",
+]
+
+check_cmd = "/app/bin/check {{ .src }}"
+reload_cmd = "/app/bin/fix_hosts"
