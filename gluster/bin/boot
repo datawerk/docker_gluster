@@ -16,10 +16,12 @@ DIR=$(dirname $0)
 
 export PORT=${PUBLISH:-24007}
 export PROTO=${PROTO:-tcp}
-export ETCD_HOST=${ETCD_HOST:-$HOST}
-export VOLUME=${VOLUME:-vol1}
+export ETCD_HOST=${ETCD_HOST:-$COREOS_PRIVATE_IPV4}
+export VOLUME=${VOLUME:-data}
 export MODE=${MODE:-replica}
 export EXPECTED_MEMBERS=${EXPECTED_MEMBERS:-2}
+export MY_IP=$(hostname -i)
+export MY_HOSTNAME=$(hostname -s)
 
 # rpcbind is useful
 service rpcbind start
@@ -27,30 +29,19 @@ service rpcbind start
 # volumes will live in /export
 mkdir -p /export
 
-if [[ -z $HOST ]]; then
-  echo '==> $HOST not set.  booting glusterfs without clustering.'
-  glusterd --pid-file=/app/gluster.pid --log-file=- --no-daemon &
-  gluster volume create $VOLUME $(hostname -s):/export/$VOLUME
-  gluster volume start $VOLUME
-  gluster volume info
-  fg
-  echo "==> glusterfs running..."
-
-  exit $?
-fi
-
 configure_etcd
 
+etcd_make_directory hosts
+etcdctl $ETCD_OPTIONS set $ETCD_PATH/hosts/$HOST $MY_IP >/dev/null
+
 etcd_make_directory volumes/$VOLUME/hosts
-etcd_set_default volumes/$VOLUME/host $HOST
 etcd_set_default volumes/$VOLUME/mode $MODE
 etcd_set_default volumes/$VOLUME/expected_members $EXPECTED_MEMBERS
-etcdctl --no-sync -C $ETCD set /hosts/$(hostname -s) $HOST >/dev/null 2>&1 || true
 
 sleep 5
 
 # wait for confd to run once and install initial templates
-until confd -onetime -node $ETCD -config-file /app/confd.toml; do
+until confd -onetime -node $ETCD -config-file /gluster/confd.toml; do
   echo "echo ==> glusterfs: waiting for confd to write initial templates..."
   sleep $(($ETCD_TTL/2))  # sleep for half the TTL
 done
@@ -59,25 +50,22 @@ count_cluster_members
 cluster_members
 
 echo Starting GlusterFS
-glusterd --pid-file=/app/gluster.pid --log-file=- --no-daemon &
+glusterd --pid-file=/gluster/gluster.pid --log-file=- --no-daemon &
 
 while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~ \"$PROTO.?\"") ]] ; do sleep 1; done
 
 echo "==> glusterfs running..."
 
-if [[ $EXPECTED_MEMBERS -eq 1 ]]; then
-    my_ip
-    gluster volume create $VOLUME $MY_IP:/$VOLUME
-    gluster volume start $VOLUME
-    gluster volume info
-else
+cluster_bootstrap
+
+if [ -z "$BOOTSTRAP" ]; then
   # Perform Election
   echo "==> Performing Election..."
   etcdctl $ETCD_OPTIONS ls $ETCD_PATH/election >/dev/null 2>&1 || etcdctl $ETCD_OPTIONS mkdir $ETCD_PATH/election >/dev/null 2>&1
-  if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/election/bootstrap $HOSTNAME >/dev/null 2>&1; then
+  if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/election/bootstrap $HOST >/dev/null 2>&1; then
     echo "-----> Hurruh I win!"
     BOOTSTRAP=1
-    etcdctl $ETCD_OPTIONS set $ETCD_PATH/election/bootstrap $HOSTNAME --ttl 300 >/dev/null 2>&1
+    etcdctl $ETCD_OPTIONS set $ETCD_PATH/election/bootstrap $HOST --ttl 300 >/dev/null 2>&1
     NEED_MORE=$(expr $EXPECTED_MEMBERS - 1)
     count_cluster_members
     until [[ $COUNT_CLUSTER_MEMBERS -eq $NEED_MORE ]]; do
@@ -91,9 +79,10 @@ else
     probe_peers
     echo "==> Sleep 20 seconds for peer to settle down"
     sleep 20
-    gluster volume create $VOLUME $MODE $EXPECTED_MEMBERS `hostname -s`:/export/$VOLUME $CLUSTER_MEMBERS
+    gluster volume create $VOLUME $MODE $EXPECTED_MEMBERS $HOST:/export/$VOLUME $CLUSTER_MEMBERS
     gluster volume start $VOLUME
     gluster volume info
+    etcdctl $ETCD_OPTIONS set $ETCD_PATH/volumes/$VOLUME/bootstrap 1
   fi
 fi
 
@@ -101,7 +90,7 @@ fi
 trap on_exit INT TERM
 
 # spawn confd in the background to update services based on etcd changes
-confd -node $ETCD -config-file /app/confd.toml &
+confd -node $ETCD -config-file /gluster/confd.toml &
 CONFD_PID=$!
 
 # publish the service to etcd using the injected HOST and PORT

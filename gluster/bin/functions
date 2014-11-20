@@ -42,8 +42,7 @@ function count_cluster_members() {
 }
 
 function publish_to_etcd() {
-    etcdctl $ETCD_OPTIONS set $ETCD_PATH/volumes/$VOLUME/hosts/$HOSTNAME $HOST --ttl $ETCD_TTL >/dev/null
-    # etcdctl $ETCD_OPTIONS set /hosts/$HOSTNAME $HOST --ttl $ETCD_TTL >/dev/null
+    etcdctl $ETCD_OPTIONS set $ETCD_PATH/volumes/$VOLUME/hosts/$HOST $HOST --ttl $ETCD_TTL >/dev/null
 }
 
 function configure_etcd() {
@@ -61,6 +60,6 @@ function configure_etcd() {
   sleep $(($ETCD_TTL+1))
 }
 
-function my_ip() {
-  MY_IP=`ip addr show dev eth0 | grep inet | grep eth0 | awk '{print $2}' | awk -F/ '{print $1}'`
+function cluster_bootstrap() {
+  export BOOTSTRAP=$(etcdctl --no-sync -C $ETCD get $ETCD_PATH/volumes/$VOLUME/bootstrap)
 }

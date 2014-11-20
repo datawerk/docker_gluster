@@ -1,5 +1,5 @@
 [confd]
-confdir  = "/app"
+confdir  = "/gluster"
 interval = 5
 prefix   = "/"
 quiet = true
