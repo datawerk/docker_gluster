@@ -18,8 +18,8 @@ export PORT=${PUBLISH:-24007}
 export PROTO=${PROTO:-tcp}
 export ETCD_HOST=$COREOS_PRIVATE_IPV4
 export VOLUME=${VOLUME:-data}
-export MODE=${MODE:-replica}
-export EXPECTED_MEMBERS=${EXPECTED_MEMBERS:-2}
+export MODE=${MODE:-stripe 2 replica 2}
+export EXPECTED_MEMBERS=${EXPECTED_MEMBERS:-4}
 export MY_IP=$(hostname -i)
 export MY_HOSTNAME=$(hostname -s)
 
@@ -78,7 +78,7 @@ if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/bootstrap 0 >/dev/null 2>&1; then
     probe_peers
     echo "==> Sleep 20 seconds for peer to settle down"
     sleep 20
-    gluster volume create $VOLUME $MODE $EXPECTED_MEMBERS $HOST:/export/$VOLUME $CLUSTER_MEMBERS
+    gluster volume create $VOLUME $MODE $HOST:/export/$VOLUME $CLUSTER_MEMBERS
     gluster volume start $VOLUME
     gluster volume info
     etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 1
