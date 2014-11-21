@@ -1,4 +1,3 @@
-[confd]
 confdir  = "/gluster"
 interval = 5
 prefix   = "/"

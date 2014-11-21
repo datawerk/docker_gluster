@@ -8,5 +8,5 @@ keys = [
   "/glusterfs/hosts",
 ]
 
-check_cmd = "/app/bin/check {{ .src }}"
-reload_cmd = "/app/bin/fix_hosts"
+check_cmd = "/gluster/bin/check {{ .src }}"
+reload_cmd = "/gluster/bin/fix_hosts"

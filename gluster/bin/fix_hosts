@@ -1,8 +1,7 @@
 #!/bin/bash
 
-#MY_NAME=$(hostname -s)
-#MY_IP=$(ip addr show dev eth0 | grep inet | grep eth0 | awk '{print $2}' | awk -F/ '{print $1}')
+MY_NAME=$(hostname -s)
+MY_IP=$(ip addr show dev eth0 | grep inet | grep eth0 | awk '{print $2}' | awk -F/ '{print $1}')
 
-#cat /tmp/hosts | sed "s/^.*${MY_NAME}$/${MY_IP}\t${MY_NAME}/" > /tmp/hosts.fix
-
-#cp /tmp/hosts.fix /etc/hosts
+echo "$MY_IP $MY_NAME" >> /tmp/hosts
+cp /tmp/hosts.fix /etc/hosts
