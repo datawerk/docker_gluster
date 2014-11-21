@@ -5,6 +5,7 @@ ff00::0 ip6-mcastprefix
 ff02::1 ip6-allnodes
 ff02::2 ip6-allrouters
 
-{{range $server := .glusterfs_hosts}}
-{{$server.Value}} {{Base $server.Key}}
+{{range gets "/glusterfs/hosts/*"}}
+{{ $name := split (.Key) "/" }}
+{{.Value}}  {{index $name 3}}
 {{end}}
