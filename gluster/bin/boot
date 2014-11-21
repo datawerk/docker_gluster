@@ -43,6 +43,10 @@ until confd -onetime -node $ETCD -config-file /gluster/confd.toml; do
   sleep $(($ETCD_TTL/2))  # sleep for half the TTL
 done
 
+# spawn confd in the background to update services based on etcd changes
+confd -node $ETCD -config-file /gluster/confd.toml &
+CONFD_PID=$!
+
 count_cluster_members
 cluster_members
 
@@ -52,8 +56,6 @@ glusterd --pid-file=/gluster/gluster.pid --log-file=- --no-daemon &
 while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~ \"$PROTO.?\"") ]] ; do sleep 1; done
 
 echo "==> glusterfs running..."
-
-cluster_bootstrap
 
 if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/bootstrap 0 >/dev/null 2>&1; then
   # Perform Election
@@ -86,24 +88,16 @@ fi
 # smart shutdown on SIGINT and SIGTERM
 trap on_exit INT TERM
 
-# spawn confd in the background to update services based on etcd changes
-confd -node $ETCD -config-file /gluster/confd.toml &
-CONFD_PID=$!
-
 # publish the service to etcd using the injected HOST and PORT
-if [[ ! -z $PUBLISH ]]; then
+set +e
 
-  set +e
+# while the port is listening, publish to etcd
+while [[ ! -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PUBLISH\" && \$1 ~ \"$PROTO.?\"") ]] ; do
+  publish_to_etcd
+  sleep $(($ETCD_TTL/2)) # sleep for half the TTL
+done
 
-  # while the port is listening, publish to etcd
-  while [[ ! -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PUBLISH\" && \$1 ~ \"$PROTO.?\"") ]] ; do
-    publish_to_etcd
-    sleep $(($ETCD_TTL/2)) # sleep for half the TTL
-  done
-
-  # if the loop quits, something went wrong
-  exit 1
-
-fi
+# if the loop quits, something went wrong
+exit 1
 
 wait
