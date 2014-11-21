@@ -16,7 +16,7 @@ DIR=$(dirname $0)
 
 export PORT=${PUBLISH:-24007}
 export PROTO=${PROTO:-tcp}
-export ETCD_HOST=${ETCD_HOST:-$COREOS_PRIVATE_IPV4}
+export ETCD_HOST=$COREOS_PRIVATE_IPV4
 export VOLUME=${VOLUME:-data}
 export MODE=${MODE:-replica}
 export EXPECTED_MEMBERS=${EXPECTED_MEMBERS:-2}
