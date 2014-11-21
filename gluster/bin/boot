@@ -55,7 +55,7 @@ echo "==> glusterfs running..."
 
 cluster_bootstrap
 
-if [ -z "$BOOTSTRAP" ]; then
+if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/volumes/$VOLUME/bootstrap 0 >/dev/null 2>&1; then
   # Perform Election
   echo "==> Performing Election..."
   etcdctl $ETCD_OPTIONS ls $ETCD_PATH/election >/dev/null 2>&1 || etcdctl $ETCD_OPTIONS mkdir $ETCD_PATH/election >/dev/null 2>&1
