@@ -4,4 +4,6 @@ MY_NAME=$(hostname -s)
 MY_IP=$(ip addr show dev eth0 | grep inet | grep eth0 | awk '{print $2}' | awk -F/ '{print $1}')
 
 echo "$MY_IP $MY_NAME" >> /tmp/hosts
-cp /tmp/hosts /etc/hosts
+
+cat /tmp/hosts | sed "s/^.*${HOST}$/127.0.0.1\t${HOST}/" > /tmp/hosts.fix
+cp /tmp/hosts.fix /etc/hosts

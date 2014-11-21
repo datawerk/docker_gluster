@@ -11,3 +11,5 @@ ADD gluster /gluster/
 RUN chmod +x /gluster/bin/*
 
 CMD ["/gluster/bin/boot"]
+
+EXPOSE 111 24007 2049 38465 38466 38467 1110 4045

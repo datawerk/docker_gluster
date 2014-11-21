@@ -29,7 +29,7 @@ service rpcbind start
 configure_etcd
 
 etcd_make_directory hosts
-etcdctl $ETCD_OPTIONS set $ETCD_PATH/hosts/$HOST $MY_IP >/dev/null
+etcdctl $ETCD_OPTIONS set $ETCD_PATH/hosts/$HOST $COREOS_PRIVATE_IPV4 >/dev/null
 
 etcd_make_directory volumes/$VOLUME/hosts
 etcd_set_default volumes/$VOLUME/mode $MODE
