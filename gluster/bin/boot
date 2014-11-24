@@ -57,7 +57,7 @@ while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~
 
 echo "==> glusterfs running..."
 
-if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/bootstrap 0 >/dev/null 2>&1; then
+if etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 0 --ttl 120 >/dev/null 2>&1; then
   # Perform Election
   echo "==> Performing Election..."
   etcdctl $ETCD_OPTIONS ls $ETCD_PATH/election >/dev/null 2>&1 || etcdctl $ETCD_OPTIONS mkdir $ETCD_PATH/election >/dev/null 2>&1
@@ -73,6 +73,7 @@ if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/bootstrap 0 >/dev/null 2>&1; then
       NEED_MORE=$(expr $EXPECTED_MEMBERS - 1)
       echo "Expected $NEED_MORE other members, Have $COUNT_CLUSTER_MEMBERS."
       echo -n "."
+      etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 0 --ttl 120 >/dev/null 2>&1
     done
     cluster_members
     probe_peers
