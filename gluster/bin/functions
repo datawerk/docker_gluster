@@ -9,8 +9,10 @@ function etcd_make_directory {
 }
 
 function on_exit() {
-    kill -TERM $SERVICE_PID
+    kill -TERM $(cat /gluster/gluster.pid)
     wait $SERVICE_PID 2>/dev/null
+    kill -TERM $CONFD_PID
+    wait $CONFD_PID 2>/dev/null
     exit 0
 }
 
