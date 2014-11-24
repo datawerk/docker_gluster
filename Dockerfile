@@ -1,6 +1,6 @@
 FROM quay.io/datawerk/centos6:latest
 
-RUN yum --setopt=tsflags=nodocs -y install nfs-utils glusterfs-server glusterfs-geo-replication glusterfs-cli attr
+RUN yum --setopt=tsflags=nodocs -y install nfs-utils glusterfs-server glusterfs-geo-replication glusterfs-cli
 RUN yum clean all
 
 ADD gluster /gluster/
