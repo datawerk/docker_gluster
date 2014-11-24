@@ -59,7 +59,3 @@ function configure_etcd() {
   # wait until etcd has discarded potentially stale values
   sleep $(($ETCD_TTL+1))
 }
-
-function cluster_bootstrap() {
-  export BOOTSTRAP=$(etcdctl --no-sync -C $ETCD get $ETCD_PATH/volumes/$VOLUME/bootstrap)
-}
