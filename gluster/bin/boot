@@ -82,6 +82,7 @@ if etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 0 --ttl 120 >/dev/null 2>&1; t
     gluster volume create $VOLUME $MODE $HOST:/export/$VOLUME $CLUSTER_MEMBERS
     gluster volume start $VOLUME
     gluster volume info
+    etcdctl $ETCD_OPTIONS rm $ETCD_PATH/bootstrap
     etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 1
   fi
 fi
