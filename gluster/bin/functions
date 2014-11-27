@@ -19,14 +19,16 @@ function on_exit() {
 function cluster_members() {
   CLUSTER_MEMBERS=
   for key in $(etcdctl --no-sync -C $ETCD ls $ETCD_PATH/volumes/$VOLUME/hosts); do
-    value=$(etcdctl --no-sync -C $ETCD get $key)
+    #value=$(etcdctl --no-sync -C $ETCD get $key)
+    value=${key}
     CLUSTER_MEMBERS+="$(basename $key):/export/$VOLUME "
   done
 }
 
 function probe_peers() {
   for key in $(etcdctl --no-sync -C $ETCD ls $ETCD_PATH/volumes/$VOLUME/hosts); do
-    value=$(etcdctl --no-sync -C $ETCD get $key)
+    #value=$(etcdctl --no-sync -C $ETCD get $key)
+    value=${key}
     if [[ $value == $HOST ]]; then
       echo .
     else
