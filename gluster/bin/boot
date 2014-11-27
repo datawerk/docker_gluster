@@ -57,7 +57,7 @@ while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~
 
 echo "==> glusterfs running..."
 
-if etcdctl $ETCD_OPTIONS set $ETCD_PATH/bootstrap 0 --ttl 120 >/dev/null 2>&1; then
+if etcdctl $ETCD_OPTIONS mk $ETCD_PATH/bootstrap 0 --ttl 120 >/dev/null 2>&1; then
   # Perform Election
   echo "==> Performing Election..."
   etcdctl $ETCD_OPTIONS ls $ETCD_PATH/election >/dev/null 2>&1 || etcdctl $ETCD_OPTIONS mkdir $ETCD_PATH/election >/dev/null 2>&1
